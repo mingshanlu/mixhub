@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <author>
+    <name>MixHub</name>
+  </author>
+  <generator uri="https://hexo.io/">Hexo</generator>
+  <icon>http://mixhub.my.id/images/logo.png</icon>
+  <id>http://mixhub.my.id/</id>
+  <link href="http://mixhub.my.id/" rel="alternate"/>
+  <link href="http://mixhub.my.id/atom.xml" rel="self"/>
+  <rights>All rights reserved 2026, MixHub</rights>
+  <subtitle>想到什麼就寫什麼的部落格 😋</subtitle>
+  <title>MixHub🪄</title>
+  <updated>2026-04-14T14:26:00.000Z</updated>
+  <entry>
+    <author>
+      <name>MixHub</name>
+    </author>
+    <category term="網站數據分析" scheme="http://mixhub.my.id/categories/%E7%B6%B2%E7%AB%99%E6%95%B8%E6%93%9A%E5%88%86%E6%9E%90/"/>
+    <category term="GTM" scheme="http://mixhub.my.id/tags/GTM/"/>
+    <category term="GA4" scheme="http://mixhub.my.id/tags/GA4/"/>
+    <id>http://mixhub.my.id/posts/f181b62d/</id>
+    <link href="http://mixhub.my.id/posts/f181b62d/"/>
+    <published>2026-03-26T13:38:00.000Z</published>
+    <summary>
+      <![CDATA[<p><img src="/images/uploads/%E7%94%A8-gtm-%E8%A8%98%E9%8C%84%E7%B6%B2%E5%9D%80-hash-%E5%90%8D%E7%A8%B1%E5%88%B0-ga.jpg" alt="用 Google Tag]]>
+    </summary>
+    <title>用 Google Tag Manager 讓 Google Analytics 記錄包含有 hash 錨點的完整網址</title>
+    <updated>2026-04-14T14:26:00.000Z</updated>
+  </entry>
+</feed>
