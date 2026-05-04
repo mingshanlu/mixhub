@@ -2,4 +2,4 @@ User-agent: *
 Disallow: /admin/
 
 # 告訴爬蟲你的地圖在哪
-Sitemap: https://mixhub.my.id/sitemap.xml
+Sitemap: https://www.mixhub.my.id/sitemap.xml
