@@ -1,3 +1,8 @@
+::-webkit-scrollbar {
+  width: 12px;          /* 直向滾動條寬度 */
+  height: 12px;         /* 橫向滾動條高度 */
+}
+
 body {
     line-height: 1.6;
 }
