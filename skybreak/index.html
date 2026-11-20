@@ -10,7 +10,7 @@
 <script>
 (function(){"use strict";
 // 版號採 MAJOR.MINOR.PATCH：新功能升 MINOR，修正與平衡調整升 PATCH。
-const GAME_VERSION="2.4.10";
+const GAME_VERSION="2.4.12";
 // ===== 遊戲可調參數：秒、毫秒與畫布像素 =====
 const PARAMS={
  screen:{width:393,height:852}, // iPhone 16 直向邏輯畫布比例。
@@ -40,7 +40,7 @@ const PARAMS={
  ],
  // 武力特殊效果參數：調整追蹤、電擊傷害、灼傷、減速與分裂行為。
  weaponEffects:{single:{damage:1,speed:500,pelletSpacing:9,staggerMs:[0,40,80,120,160,200],level6SizeBonus:.3},machine:{damage:.5,speed:420,basePellets:3,maxPellets:7,level6Pellets:9},tracking:{damage:1,speed:250,turnDegreesPerSecond:180,maxTurnDegrees:60,seekSeconds:.8,blastRadius:16},spread:{damage:1,speed:430,basePellets:4,pelletsPerLevel:2,angleByLevel:[45,50,55,60,65,70]},laser:{damage:1,damagePerLevel:.2,width:36,fireSeconds:.23,tickDamagePerSecond:5},// orbitRadiusPlayerWidthMultiplier=初始軌道半徑/戰機寬度；level6OrbitExpansionRatio=Lv.6額外外擴比例；baseOrbitSpeedMultiplier=初始轉速倍率（2為原始速度的兩倍）。
- satellite:{damage:1,cooldownSeconds:.5,orbitRadiusPlayerWidthMultiplier:1.5,level6OrbitExpansionRatio:.25,hitRadius:6,blockRadius:7,baseOrbitSpeedMultiplier:4,orbitSpeedPerLevel:.05},electric:{initialDamage:.5,damagePerLevel:.1,boltSeconds:.32,chainDistanceRatio:.25},flame:{damage:1,speed:390,baseProjectiles:1,angleStepDegrees:9,radius:7,lifeSeconds:2.2,burnDamagePerSecond:1,burnSeconds:3,sizePerLevel:.05,activeSeconds:.45,tickSeconds:.2},ice:{damage:1,projectilesPerLevel:3,normalSlow:.5,bossSlow:.2,slowSeconds:2,bossMinSpeed:.8},split:{damage:.5,speed:300,subDamage:.5,subSpeed:220,firstSplitBase:2,secondSplitCount:3,lifeSeconds:.8,miniLifeSeconds:.65}}
+ satellite:{damage:1,cooldownSeconds:.5,orbitRadiusPlayerWidthMultiplier:1.5,level6OrbitExpansionRatio:.25,hitRadius:6,blockRadius:7,baseOrbitSpeedMultiplier:4,orbitSpeedPerLevel:.05},electric:{initialDamage:.5,damagePerLevel:.1,boltSeconds:.32,chainDistanceRatio:.25},flame:{damage:1,speed:390,baseProjectiles:1,angleStepDegrees:9,radius:7,lifeSeconds:2.2,burnDamagePerSecond:1,burnSeconds:3,sizePerLevel:.10,activeSeconds:.45,tickSeconds:.2},ice:{damage:1,projectilesPerLevel:3,normalSlow:.5,bossSlow:.2,slowSeconds:2,bossMinSpeed:.8},split:{damage:.5,speed:300,subDamage:.5,subSpeed:220,firstSplitBase:2,secondSplitCount:3,lifeSeconds:.8,miniLifeSeconds:.65}}
 };
 // ===== 可調參數區結束 =====
 let W=PARAMS.screen.width,H=PARAMS.screen.height;const c=document.getElementById("game"),x=c.getContext("2d"),layer=document.getElementById("layer"),hud=document.getElementById("hud"),bombBtn=document.getElementById("bomb"),loadout=document.getElementById("loadout"),defs=PARAMS.weapons;
@@ -60,7 +60,7 @@ function syncCanvasSize(){
 syncCanvasSize();window.addEventListener("resize",syncCanvasSize,{passive:true});if(window.visualViewport)window.visualViewport.addEventListener("resize",syncCanvasSize,{passive:true});
 const rand=(a,b)=>a+Math.random()*(b-a),pick=a=>a[Math.floor(Math.random()*a.length)],weapon=id=>defs.find(d=>d[0]===id);
 function applySlow(target){target.slowUntil=now+PARAMS.weaponEffects.ice.slowSeconds;if(!target.slowTextAt||now-target.slowTextAt>.55){floatText(target.x,target.y-target.r-6,"減速","#55eaff");target.slowTextAt=now}}
-function critDamage(base,target){let chance=PARAMS.crit.baseChance+(meta.spent[4]||0)*PARAMS.crit.chancePerLevel,rank=1+(meta.spent[5]||0),multiplier=PARAMS.crit.damageMultiplierByLevel[Math.min(4,rank-1)];if(Math.random()<chance){let dealt=base*multiplier,label=Number.isInteger(dealt)?dealt:dealt.toFixed(1);floatText(target.x,target.y-target.r-8,"暴擊 -"+label,"#ff42d0");return dealt}return base}
+function critDamage(base,target,caption){let chance=PARAMS.crit.baseChance+(meta.spent[4]||0)*PARAMS.crit.chancePerLevel,rank=1+(meta.spent[5]||0),multiplier=PARAMS.crit.damageMultiplierByLevel[Math.min(4,rank-1)],critical=Math.random()<chance,dealt=critical?base*multiplier:base,label=Number.isInteger(dealt)?dealt:dealt.toFixed(1);if(caption||critical)floatText(target.x,target.y-target.r-8,(caption?(caption+(critical?"暴擊 ":" ")):("暴擊 "))+"-"+label,critical?"#ff42d0":"#ffad4a");return dealt}
 function awardRunPoints(){let oldTotal=Math.max(0,Math.floor(meta.totalScore||0)),runScore=Math.max(0,Math.floor(score)),newTotal=oldTotal+runScore,pointsAt=v=>meta.s0>0&&v>=meta.s0?Math.floor(Math.log(v/meta.s0)/Math.log(PARAMS.progression.permanentPointScoreMultiplier))+1:0,target=pointsAt(newTotal),earned=Math.max(0,Math.floor(meta.totalPointsEarned||0)),gained=Math.max(0,target-earned);meta.totalScore=newTotal;meta.totalPointsEarned=Math.max(earned,target);meta.points+=gained;return gained}
 function vibrationSupported(){return typeof navigator!=="undefined"&&typeof navigator.vibrate==="function"}
 function haptic(kind){if(!hapticsEnabled||!vibrationSupported())return;try{navigator.vibrate(kind==="small"?18:kind==="bomb"?[150,45,180]:[110,45,150])}catch(e){}}
@@ -169,12 +169,12 @@ function update(dt){
  }
  for(let e of en){
   if(e.dead)continue;e.age+=dt;e.flash=Math.max(0,e.flash-dt);let slowed=e.slowUntil>now;e.y+=e.vy*(slowed?1-PARAMS.weaponEffects.ice.normalSlow:1)*dt;e.x+=Math.sin(e.age*1.5+e.phase)*22*dt;e.shot-=dt;
-  if(e.burnUntil>now&&now>=e.nextBurn){e.hp-=critDamage(PARAMS.weaponEffects.flame.burnDamagePerSecond,e);floatText(e.x,e.y-e.r-5,'-'+PARAMS.weaponEffects.flame.burnDamagePerSecond,'#ffad4a');e.nextBurn+=1;if(e.hp<=0)kill(e)}
+  if(e.burnUntil>now&&now>=e.nextBurn){e.hp-=critDamage(PARAMS.weaponEffects.flame.burnDamagePerSecond,e,"灼傷");e.nextBurn+=1;if(e.hp<=0)kill(e)}
   if(e.shot<=0&&e.y>10&&e.y<H-160){e.attackMode=Math.floor(Math.random()*3);fireEnemyPattern(e);e.shot=enemyIntervalSeconds()}
   if(e.y>H+40)e.dead=true;if(Math.hypot(p.x-e.x,p.y-e.y)<e.r+12)hurt();
   let sn=p.weapons.satellite||0;for(let si=0;si<sn;si++){let q=satellitePosition(si,sn);if(Math.hypot(q.x-e.x,q.y-e.y)<e.r+PARAMS.weaponEffects.satellite.hitRadius){e.satHit=e.satHit||{};if(!e.satHit[si]||now-e.satHit[si]>PARAMS.weaponEffects.satellite.cooldownSeconds){e.satHit[si]=now;e.hp-=critDamage(PARAMS.weaponEffects.satellite.damage,e);if(e.hp<=0)kill(e)}}}
  }
- if(boss&&boss.burnUntil>now&&now>=boss.nextBurn){boss.hp-=critDamage(PARAMS.weaponEffects.flame.burnDamagePerSecond,boss);floatText(boss.x,boss.y-boss.r-8,'-'+PARAMS.weaponEffects.flame.burnDamagePerSecond,'#ffad4a');boss.nextBurn+=1;if(boss.hp<=0)kill(boss)}
+ if(boss&&boss.burnUntil>now&&now>=boss.nextBurn){boss.hp-=critDamage(PARAMS.weaponEffects.flame.burnDamagePerSecond,boss,"灼傷");boss.nextBurn+=1;if(boss.hp<=0)kill(boss)}
  if(boss){let sn=p.weapons.satellite||0;for(let si=0;si<sn;si++){let q=satellitePosition(si,sn);if(Math.hypot(q.x-boss.x,q.y-boss.y)<boss.r+PARAMS.weaponEffects.satellite.hitRadius){boss.satHit=boss.satHit||{};if(!boss.satHit[si]||now-boss.satHit[si]>PARAMS.weaponEffects.satellite.cooldownSeconds){boss.satHit[si]=now;boss.hp-=critDamage(PARAMS.weaponEffects.satellite.damage,boss);if(boss.hp<=0)kill(boss)}}}}
  for(let b of pb){if(b.delay>0){b.delay=Math.max(0,b.delay-dt);continue}b.x+=b.vx*dt;b.y+=b.vy*dt;if(b.id==="tracking"&&b.turning){b.life-=dt;if(b.life>0&&b.target&&!b.target.dead&&b.target.hp>0){let base=b.initialAngle,cur=Math.atan2(b.vx,-b.vy),off=Math.atan2(Math.sin(cur-base),Math.cos(cur-base)),desired=Math.atan2(b.target.x-b.x,b.y-b.target.y),want=Math.atan2(Math.sin(desired-base),Math.cos(desired-base));let maxTurn=PARAMS.weaponEffects.tracking.maxTurnDegrees*Math.PI/180;want=Math.max(-maxTurn,Math.min(maxTurn,want));let diff=Math.atan2(Math.sin((base+want)-cur),Math.cos((base+want)-cur)),step=PARAMS.weaponEffects.tracking.turnDegreesPerSecond*Math.PI/180*dt;cur+=Math.max(-step,Math.min(step,diff));off=Math.atan2(Math.sin(cur-base),Math.cos(cur-base));cur=base+Math.max(-maxTurn,Math.min(maxTurn,off));b.vx=Math.sin(cur)*PARAMS.weaponEffects.tracking.speed;b.vy=-Math.cos(cur)*PARAMS.weaponEffects.tracking.speed}else b.turning=false}else if(b.life!=null){b.life-=dt;if(b.id==="split"&&b.splitsLeft>0&&b.life<=0){split(b);b.dead=true}}if(!b.dead&&hit(b))b.dead=true;if(b.y<-25||b.y>H+25||b.x<-25||b.x>W+25)b.dead=true}
  if(p.laser>0&&p.laserUntil>now){let hitlist=laserTargets();if(p.laserLevel<6)hitlist=hitlist.slice(0,1);for(let e of hitlist){e.hp-=critDamage(p.laser*dt*PARAMS.weaponEffects.laser.tickDamagePerSecond,e);if(e.hp<=0)kill(e)}}
