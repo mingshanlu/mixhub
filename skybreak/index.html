@@ -10,14 +10,14 @@
 <script>
 (function(){"use strict";
 // 版號採 MAJOR.MINOR.PATCH：新功能升 MINOR，修正與平衡調整升 PATCH。
-const GAME_VERSION="2.4.6";
+const GAME_VERSION="2.4.8";
 // ===== 遊戲可調參數：秒、毫秒與畫布像素 =====
 const PARAMS={
  screen:{width:393,height:852}, // iPhone 16 直向邏輯畫布比例。
  boss:{intervalSeconds:60,scoreHealthRatio:.05,smallRadius:40,bigRadius:52}, // Boss 血量 = 出現當下分數 × 5%。
  progression:{permanentPointScoreMultiplier:1.178}, // 永久點數門檻倍率，可在此調整。
  player:{aircraftWidth:60,startBottomOffset:260,initialHP:3,initialBombs:2,initialBombDamage:1,hitInvulnerability:1.5,bombInvulnerability:1}, // 起始位置距畫面底部 260px，避免被底部能力槽遮住。
- mobility:{followDelaySeconds:[.4,.32,.24,.16,.8,0]}, // 機動性 Lv.0～5 的游標追隨時間常數(秒)。
+ mobility:{followDelaySeconds:[.4,.32,.24,.16,.08,0]}, // 機動性 Lv.0～5 的游標追隨時間常數(秒)。
  upgrade:{initialSlots:3,maxSlots:8,maxLevel:6,lifeOptionChance:.05},
  crit:{baseChance:.05,chancePerLevel:.05,damageMultiplierByLevel:[1.1,2,3,4,5]}, // 暴擊參數：永久暴擊率與暴擊傷害倍率。
  bomb:{radiusShortSideRatio:.60,visualSeconds:.9,shockwaveCount:3},
@@ -150,14 +150,14 @@ function clearSeason(){if(state!=="play"&&state!=="upgrade")return;setMusic("off
 function bomb(){if(state!=="play"||p.bombs<=0)return;p.bombs--;p.inv=Math.max(p.inv,PARAMS.player.bombInvulnerability);eb=[];let r=Math.min(W,H)*PARAMS.bomb.radiusShortSideRatio;blasts.push({x:p.x,y:p.y,r,life:PARAMS.bomb.visualSeconds,max:PARAMS.bomb.visualSeconds});sfx("bomb");for(let e of en)if(Math.hypot(e.x-p.x,e.y-p.y)<=r+e.r){e.hp-=critDamage(p.bombDmg,e);if(e.hp<=0)kill(e)}if(boss&&Math.hypot(boss.x-p.x,boss.y-p.y)<=r+boss.r){boss.hp-=critDamage(p.bombDmg,boss);if(boss.hp<=0)kill(boss)}burst(p.x,p.y,"#ffc869",55);toast("炸彈引爆 · 敵彈清除");haptic("bomb");hudUpdate()}
 bombBtn.onclick=bomb;
 function hurt(){if(p.inv>0)return;p.hp--;p.inv=PARAMS.player.hitInvulnerability;sfx("hit");burst(p.x,p.y,"#ff536d",18);hudUpdate();if(p.hp<=0)end()}
-function end(){if(state!=="play")return;setMusic("off");state="dead";hud.style.display="none";bombBtn.style.display="none";loadout.style.display="none";let old=meta.high;meta.high=Math.max(old,Math.floor(score));let gained=awardRunPoints();save();show('<div class="eyebrow">FLIGHT ENDED</div><h2>戰機墜毀</h2><p class="sub">本次得分　<b class="big">'+Math.floor(score).toLocaleString()+'</b><br>累計總分　<b>'+meta.totalScore.toLocaleString()+'</b></p><div class="kpis"><div class="kpi">歷史最高<strong>'+meta.high.toLocaleString()+'</strong></div><div class="kpi">永久點數<strong>+'+gained+'</strong></div><div class="kpi">擊敗 Boss<strong>'+bossN+'</strong></div><div class="kpi">永久點數餘額<strong>'+meta.points+'</strong></div></div><div class="row"><button id="again" class="btn primary">再次出擊</button><button id="hang" class="btn gold">機庫升級</button></div>');document.getElementById("again").onclick=()=>{state="menu";start()};document.getElementById("hang").onclick=hangar}
+function end(){if(state!=="play"&&state!=="pause")return;setMusic("off");state="dead";hud.style.display="none";bombBtn.style.display="none";loadout.style.display="none";let old=meta.high;meta.high=Math.max(old,Math.floor(score));let gained=awardRunPoints();save();show('<div class="eyebrow">FLIGHT ENDED</div><h2>戰機墜毀</h2><p class="sub">本次得分　<b class="big">'+Math.floor(score).toLocaleString()+'</b><br>累計總分　<b>'+meta.totalScore.toLocaleString()+'</b></p><div class="kpis"><div class="kpi">歷史最高<strong>'+meta.high.toLocaleString()+'</strong></div><div class="kpi">永久點數<strong>+'+gained+'</strong></div><div class="kpi">擊敗 Boss<strong>'+bossN+'</strong></div><div class="kpi">永久點數餘額<strong>'+meta.points+'</strong></div></div><div class="row"><button id="again" class="btn primary">再次出擊</button><button id="hang" class="btn gold">機庫升級</button></div>');document.getElementById("again").onclick=()=>{state="menu";start()};document.getElementById("hang").onclick=hangar}
 function laserTargets(){let half=PARAMS.weaponEffects.laser.width*(1+(p.laserLevel-1)*.05)/2,hitlist=en.filter(e=>!e.dead&&e.y<p.y&&Math.abs(e.x-p.x)<=half+e.r);if(boss&&boss.y<p.y&&Math.abs(boss.x-p.x)<=half+boss.r)hitlist.push(boss);return hitlist.sort((a,b)=>b.y-a.y)}
 function update(dt){
  if(toastT>0){toastT-=dt;if(toastT<=0)document.getElementById("toast").style.display="none"}
  if(state!=="play")return;
  if(!boss)elapsed+=dt;
  p.inv=Math.max(0,p.inv-dt);
- let mobilityLevel=Math.min(5,meta.spent[0]||0),mobilityDelay=PARAMS.mobility.followDelaySeconds[mobilityLevel],followAlpha=mobilityDelay===0?1:1-Math.exp(-dt/mobilityDelay);p.mobilityDelay=mobilityDelay;p.x+=(p.tx-p.x)*followAlpha;p.y+=(p.ty-p.y)*followAlpha;
+ let mobilityLevel=Math.min(5,meta.spent[0]||0),mobilityDelay=PARAMS.mobility.followDelaySeconds[mobilityLevel],followAlpha=mobilityDelay===0?1:1-Math.exp(-dt/mobilityDelay);p.mobilityDelay=mobilityDelay;if(mobilityLevel>=5){p.x=p.tx;p.y=p.ty}else{p.x+=(p.tx-p.x)*followAlpha;p.y+=(p.ty-p.y)*followAlpha}
  p.x=Math.max(20,Math.min(W-20,p.x));p.y=Math.max(55,Math.min(H-35,p.y));
  shoot(dt);
  if(!boss){spawnT-=dt;if(spawnT<=0){spawnEnemy();spawnT=Math.max(.28,1-bossN*.018)}if(elapsed>=PARAMS.boss.intervalSeconds){elapsed=0;spawnBoss()}}
@@ -252,8 +252,8 @@ function drawEnemy(e){
 function drawBoss(b){x.save();x.translate(b.x,b.y);x.fillStyle=b.big?"#bd76ff":"#ff5d78";x.shadowColor=x.fillStyle;x.shadowBlur=20;x.beginPath();x.moveTo(0,b.r);x.lineTo(b.r*1.35,0);x.lineTo(b.r*.62,-b.r*.15);x.lineTo(b.r*.35,-b.r*.7);x.lineTo(0,-b.r*.42);x.lineTo(-b.r*.35,-b.r*.7);x.lineTo(-b.r*.62,-b.r*.15);x.lineTo(-b.r*1.35,0);x.closePath();x.fill();x.fillStyle="#fff0b0";x.fillRect(-6,-12,12,23);if(b.burnUntil>now){x.strokeStyle="#ff8b38";x.lineWidth=3;x.beginPath();x.arc(0,0,b.r+7,0,6.28);x.stroke();x.fillStyle="#ffb04a";for(let i=-1;i<=1;i++){x.beginPath();x.moveTo(i*12-4,-b.r+4);x.lineTo(i*12,-b.r-6);x.lineTo(i*12+4,-b.r+4);x.fill()}}if(b.slowUntil>now){x.strokeStyle="#73eaff";x.lineWidth=3;x.setLineDash([5,3]);x.beginPath();x.arc(0,0,b.r+13,0,6.28);x.stroke();x.setLineDash([])}x.restore()}
 function frame(t){let dt=Math.min(.04,(t-last)/1000||0);last=t;now+=dt;update(dt);draw();requestAnimationFrame(frame)}
 function pos(e){let r=c.getBoundingClientRect();return {x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
-c.addEventListener("pointerdown",e=>{c.setPointerCapture(e.pointerId);let q=pos(e);if(p){p.tx=q.x;p.ty=q.y}});
-c.addEventListener("pointermove",e=>{let q=pos(e);if(p){p.tx=q.x;p.ty=q.y}});
+c.addEventListener("pointerdown",e=>{c.setPointerCapture(e.pointerId);let q=pos(e);if(p){p.tx=Math.max(20,Math.min(W-20,q.x));p.ty=Math.max(55,Math.min(H-35,q.y));if((meta.spent[0]||0)>=5){p.x=p.tx;p.y=p.ty}}});
+c.addEventListener("pointermove",e=>{let q=pos(e);if(p){p.tx=Math.max(20,Math.min(W-20,q.x));p.ty=Math.max(55,Math.min(H-35,q.y));if((meta.spent[0]||0)>=5){p.x=p.tx;p.y=p.ty}}});
 window.addEventListener("keydown",e=>{if(e.code==="KeyM")toggleMusic();if(e.code==="KeyN")toggleSfx();if(e.code==="Space"){e.preventDefault();bomb()}if(e.code==="Escape"&&state==="play"){state="pause";show('<div class="eyebrow">PAUSED</div><h2>戰鬥暫停</h2><button id="resume" class="btn primary">繼續</button> <button id="quit" class="btn">放棄本場</button>');document.getElementById("resume").onclick=()=>{hide();state="play"};document.getElementById("quit").onclick=end}});
 menu();requestAnimationFrame(frame);
 })();
