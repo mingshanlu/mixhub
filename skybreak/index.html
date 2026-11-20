@@ -10,7 +10,7 @@
 <script>
 (function(){"use strict";
 // 版號採 MAJOR.MINOR.PATCH：新功能升 MINOR，修正與平衡調整升 PATCH。
-const GAME_VERSION="2.4.8";
+const GAME_VERSION="2.4.9";
 // ===== 遊戲可調參數：秒、毫秒與畫布像素 =====
 const PARAMS={
  screen:{width:393,height:852}, // iPhone 16 直向邏輯畫布比例。
@@ -78,7 +78,7 @@ show('<div class="eyebrow">CLASSIC SHOOTER · ROGUELITE</div><h1>SKYBREAK<br>194
 layer.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{if(!b.disabled){seasonPick=+b.dataset.s;menu()}});document.getElementById("start").onclick=()=>{audioStart();start()};document.getElementById("hangar").onclick=hangar;let mb=document.getElementById("musicToggle"),eb=document.getElementById("sfxToggle");if(mb){mb.textContent="背景音樂："+(musicEnabled?"開":"關");mb.onclick=()=>{toggleMusic();mb.textContent="背景音樂："+(musicEnabled?"開":"關")}}if(eb){eb.textContent="音效："+(sfxEnabled?"開":"關");eb.onclick=()=>{toggleSfx();eb.textContent="音效："+(sfxEnabled?"開":"關")}}let hb=document.getElementById("hapticToggle");if(hb){let supported=vibrationSupported(),label=()=>hb.textContent=supported?"震動："+(hapticsEnabled?"開":"關"):"震動：不支援";hb.disabled=!supported;hb.title=supported?"切換震動提示":"此瀏覽器沒有提供手機震動功能";label();hb.onclick=()=>{hapticsEnabled=!hapticsEnabled;label();if(hapticsEnabled)haptic("small")}}}
 function hangar(){
  state="hangar";loadout.style.display="none";
- let names=["機動性","能力槽","生命","武力發射速度","暴擊幾率","暴擊傷害"],rows=names.map((n,i)=>{let spent=meta.spent[i]||0,lv=i===5?1+spent:spent,cost=spent+1,value=i===4?" · "+Math.round((PARAMS.crit.baseChance+spent*PARAMS.crit.chancePerLevel)*100)+"%":i===5?" · "+PARAMS.crit.damageMultiplierByLevel[Math.min(4,lv-1)]+"倍":"",maxed=lv>=5;return '<div class="kpi">'+n+' Lv.'+lv+'/5'+value+'<br><small>升級 '+cost+' 點</small><button class="btn" data-u="'+i+'" '+(meta.points<cost||maxed?"disabled":"")+' style="float:right;padding:6px">升級</button></div>'}).join("");
+ let names=["機動性","能力槽","生命","武力發射速度","暴擊幾率","暴擊傷害"],rows=names.map((n,i)=>{let spent=meta.spent[i]||0,lv=i===5?1+spent:spent,cost=spent+1,maxed=lv>=5;return '<div class="kpi">'+n+' Lv.'+lv+'/5'+'<br><small>升級 '+cost+' 點</small><button class="btn" data-u="'+i+'" '+(meta.points<cost||maxed?"disabled":"")+' style="float:right;padding:6px">升級</button></div>'}).join("");
  let invested=meta.spent.reduce((sum,lv)=>sum+lv*(lv+1)/2,0);
  show('<div class="eyebrow">AIRCRAFT HANGAR</div><h2>永久強化</h2><p class="sub">可用點數：<b class="big">'+meta.points+'</b></p><div class="kpis">'+rows+'</div><p class="sub">能力槽最高 8 格；生命最高 8；永久射速每級增加 6%。暴擊率初始5%，每級+5%；暴擊傷害Lv.1為1.1倍，Lv.2至Lv.5為2至5倍。</p><button id="resetPoints" class="btn" '+(invested?"":"disabled")+'>重置點數並退還 '+invested+' 點</button> <button id="back" class="btn">返回</button>');
  layer.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{let i=+b.dataset.u,spent=meta.spent[i]||0,cost=spent+1,lv=i===5?1+spent:spent;if(meta.points>=cost&&lv<5){meta.points-=cost;meta.spent[i]=spent+1;save();hangar()}});
