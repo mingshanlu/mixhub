@@ -10,11 +10,11 @@
 <script>
 (function(){"use strict";
 // 版號採 MAJOR.MINOR.PATCH：新功能升 MINOR，修正與平衡調整升 PATCH。
-const GAME_VERSION="2.3.0";
+const GAME_VERSION="2.3.1";
 // ===== 遊戲可調參數：秒、毫秒與畫布像素 =====
 const PARAMS={
  screen:{width:393,height:852}, // iPhone 16 直向邏輯畫布比例。
- boss:{intervalSeconds:60,smallHealthBase:1,smallRadius:40,bigRadius:52},
+ boss:{intervalSeconds:60,scoreHealthRatio:.05,smallRadius:40,bigRadius:52}, // Boss 血量 = 出現當下分數 × 5%。
  player:{aircraftWidth:60,startBottomOffset:260,initialHP:3,initialBombs:2,initialBombDamage:1,hitInvulnerability:1.5,bombInvulnerability:1}, // 起始位置距畫面底部 260px，避免被底部能力槽遮住。
  mobility:{followDelaySeconds:[.4,.32,.24,.16,.8,0]}, // 機動性 Lv.0～5 的游標追隨時間常數(秒)。
  upgrade:{initialSlots:3,maxSlots:8,maxLevel:6},
@@ -44,7 +44,7 @@ const PARAMS={
 let W=PARAMS.screen.width,H=PARAMS.screen.height;const c=document.getElementById("game"),x=c.getContext("2d"),layer=document.getElementById("layer"),hud=document.getElementById("hud"),bombBtn=document.getElementById("bomb"),loadout=document.getElementById("loadout"),defs=PARAMS.weapons;
 const seasons=[{name:"藍超巨星",bosses:10,mul:1},{name:"黃矮星",bosses:12,mul:2},{name:"紅巨星",bosses:14,mul:3},{name:"中子星",bosses:26,mul:4}];
 const key="skybreak1945-v20";function load(){try{return Object.assign({high:0,unlocked:0,points:0,spent:[0,0,0,0],s0:0},JSON.parse(localStorage.getItem(key)||"{}"))}catch(e){return {high:0,unlocked:0,points:0,spent:[0,0,0,0],s0:0}}}
-let meta=load(),seasonPick=0,state="menu",p=null,baseHP=0,en=[],pb=[],eb=[],drops=[],fx=[],bolts=[],blasts=[],flames=[],radials=[],boss=null,score=0,elapsed=0,bossN=0,dropCount=0,spawnT=0,fireT={},now=0,toastT=0,last=performance.now(),runSeason=0,musicEnabled=true,sfxEnabled=true,hapticsEnabled=true,audioCtx=null,musicBus=null,sfxBus=null,musicTimer=null,musicMode="normal",musicStep=0,soundLast={};
+let meta=load(),seasonPick=0,state="menu",p=null,en=[],pb=[],eb=[],drops=[],fx=[],bolts=[],blasts=[],flames=[],radials=[],boss=null,score=0,elapsed=0,bossN=0,dropCount=0,spawnT=0,fireT={},now=0,toastT=0,last=performance.now(),runSeason=0,musicEnabled=true,sfxEnabled=true,hapticsEnabled=true,audioCtx=null,musicBus=null,sfxBus=null,musicTimer=null,musicMode="normal",musicStep=0,soundLast={};
 function syncCanvasSize(){
  const rect=c.getBoundingClientRect(),nw=rect.width,nh=rect.height;if(nw<1||nh<1)return;
  const sx=nw/W,sy=nh/H,rs=Math.sqrt(sx*sy);
@@ -75,7 +75,7 @@ layer.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{if(!b.disabled){sea
 function hangar(){state="hangar";loadout.style.display="none";let names=["機動性","能力槽","生命","武力發射速度"],rows=names.map((n,i)=>{let lv=meta.spent[i]||0,cost=lv+1;return '<div class="kpi">'+n+' Lv.'+lv+'/5<br><small>升級 '+cost+' 點</small><button class="btn" data-u="'+i+'" '+(meta.points<cost||lv>=5?"disabled":"")+' style="float:right;padding:6px">升級</button></div>'}).join("");
 show('<div class="eyebrow">AIRCRAFT HANGAR</div><h2>永久強化</h2><p class="sub">可用點數：<b class="big">'+meta.points+'</b></p><div class="kpis">'+rows+'</div><p class="sub">能力槽最高 8 格；生命最高 8；永久射速每級增加 6%。</p><button id="back" class="btn">返回</button>');
 layer.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{let i=+b.dataset.u,cost=(meta.spent[i]||0)+1;if(meta.points>=cost&&cost<=5){meta.points-=cost;meta.spent[i]=cost;save();hangar()}});document.getElementById("back").onclick=menu}
-function start(){audioStart();setMusic("normal");runSeason=seasonPick;state="play";score=0;baseHP=0;elapsed=0;bossN=0;boss=null;spawnT=.4;fireT={};en=[];pb=[];eb=[];drops=[];fx=[];bolts=[];blasts=[];flames=[];radials=[];dropCount=PARAMS.drops.minPerBossCycle+(Math.random()<PARAMS.drops.extraChance?1:0);p={x:W/2,y:H-PARAMS.player.startBottomOffset,tx:W/2,ty:H-PARAMS.player.startBottomOffset,hp:PARAMS.player.initialHP+(meta.spent[2]||0),max:PARAMS.player.initialHP+(meta.spent[2]||0),bombs:PARAMS.player.initialBombs,bombDmg:PARAMS.player.initialBombDamage,inv:0,weapons:{single:1},laser:0};hide();hud.style.display="block";bombBtn.style.display="block";document.getElementById("seasonLabel").textContent=seasons[runSeason].name;toast("準備出擊！");hudUpdate()}
+function start(){audioStart();setMusic("normal");runSeason=seasonPick;state="play";score=0;elapsed=0;bossN=0;boss=null;spawnT=.4;fireT={};en=[];pb=[];eb=[];drops=[];fx=[];bolts=[];blasts=[];flames=[];radials=[];dropCount=PARAMS.drops.minPerBossCycle+(Math.random()<PARAMS.drops.extraChance?1:0);p={x:W/2,y:H-PARAMS.player.startBottomOffset,tx:W/2,ty:H-PARAMS.player.startBottomOffset,hp:PARAMS.player.initialHP+(meta.spent[2]||0),max:PARAMS.player.initialHP+(meta.spent[2]||0),bombs:PARAMS.player.initialBombs,bombDmg:PARAMS.player.initialBombDamage,inv:0,weapons:{single:1},laser:0};hide();hud.style.display="block";bombBtn.style.display="block";document.getElementById("seasonLabel").textContent=seasons[runSeason].name;toast("準備出擊！");hudUpdate()}
 function used(){return Object.entries(p.weapons).reduce((n,[id,lv])=>n+(id==="single"?(lv>=2?1:0):1),0)}function cap(){return Math.min(PARAMS.upgrade.maxSlots,PARAMS.upgrade.initialSlots+(meta.spent[1]||0))}
 function weaponIcon(id){let paths={
  single:'<path d="M12 19V5m0 0L8 9m4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -103,7 +103,7 @@ function fireEnemyPattern(e){
 }
 function spawnEnemy(){let mid=Math.random()>PARAMS.enemy.normalChance,base=mid?PARAMS.enemy.midHP:PARAMS.enemy.normalHP,n=bossN,types=1+n;en.push({x:rand(35,W-35),y:-30,hp:base*seasons[runSeason].mul,max:base*seasons[runSeason].mul,base,mid,r:mid?18:13,kind:Math.floor(Math.random()*types),vy:rand(45,85)+n,phase:rand(0,6),shot:rand(.35,1),attackMode:0,age:0,drop:dropCount>0?(dropCount--,true):false,slowUntil:0,flash:0})}
 
-function spawnBoss(){bossN++;haptic("boss");let isBig=bossN%2===0;if(bossN===1&&meta.s0===0){meta.s0=Math.max(1,Math.floor(score));save()}let hp=Math.max(250,(PARAMS.boss.smallHealthBase*bossN+baseHP)*seasons[runSeason].mul);boss={x:W/2,y:110,hp,max:hp,big:isBig,r:isBig?PARAMS.boss.bigRadius:PARAMS.boss.smallRadius,shot:1.3,age:0,flash:0,slowUntil:0};if(isBig)en=[];else en=en.filter(e=>!e.mid).slice(0,3);setMusic("boss");sfx("boss");toast((isBig?"大型":"小型")+" Boss 來襲！");hudUpdate()}
+function spawnBoss(){bossN++;haptic("boss");let isBig=bossN%2===0;if(bossN===1&&meta.s0===0){meta.s0=Math.max(1,Math.floor(score));save()}let hp=Math.max(1,score*PARAMS.boss.scoreHealthRatio);boss={x:W/2,y:110,hp,max:hp,big:isBig,r:isBig?PARAMS.boss.bigRadius:PARAMS.boss.smallRadius,shot:1.3,age:0,flash:0,slowUntil:0};if(isBig)en=[];else en=en.filter(e=>!e.mid).slice(0,3);setMusic("boss");sfx("boss");toast((isBig?"大型":"小型")+" Boss 來襲！");hudUpdate()}
 function targets(){return (boss?[boss]:[]).concat(en.filter(e=>!e.dead)).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))}
 function satellitePosition(i,count){let z=PARAMS.weaponEffects.satellite,angle=now*z.baseOrbitSpeedMultiplier*(1+z.orbitSpeedPerLevel*(count-1))+i*Math.PI*2/count,r=PARAMS.player.aircraftWidth*z.orbitRadiusPlayerWidthMultiplier*(count>=6?1+z.level6OrbitExpansionRatio:1);return {x:p.x+Math.cos(angle)*r,y:p.y+Math.sin(angle)*r}}
 function fire(id,lv){
@@ -131,7 +131,7 @@ function hit(b){
 function trackingBlast(x0,y0){let r=PARAMS.weaponEffects.tracking.blastRadius;radials.push({x:x0,y:y0,r,life:.28,max:.28,color:"#ffe17a"});for(let e of en)if(!e.dead&&Math.hypot(e.x-x0,e.y-y0)<r+e.r){e.hp-=1;if(e.hp<=0)kill(e)}if(boss&&Math.hypot(boss.x-x0,boss.y-y0)<r+boss.r){boss.hp-=1;if(boss.hp<=0)kill(boss)}}
 function split(b){if(!b.splitsLeft||b.splitsLeft<=0)return;let n=b.splitsLeft===2?b.split:PARAMS.weaponEffects.split.secondSplitCount;for(let i=0;i<n;i++){let a=i*Math.PI*2/n;pb.push({x:b.x,y:b.y,vx:Math.cos(a)*PARAMS.weaponEffects.split.subSpeed,vy:Math.sin(a)*PARAMS.weaponEffects.split.subSpeed,dmg:PARAMS.weaponEffects.split.subDamage,col:b.col,r:b.splitsLeft===2?4:3,id:"split",life:PARAMS.weaponEffects.split.miniLifeSeconds,level:b.level,splitsLeft:b.splitsLeft-1,split:PARAMS.weaponEffects.split.secondSplitCount})}b.splitsLeft=0;b.split=0;burst(b.x,b.y,b.col,8)}
 
-function kill(e){if(e.dead)return;e.dead=true;if(e===boss){haptic("boss");boss=null;setMusic("normal");score+=500*seasons[runSeason].mul;dropCount=PARAMS.drops.minPerBossCycle+(Math.random()<PARAMS.drops.extraChance?1:0);burst(e.x,e.y,"#ffd16b",38);if(bossN>=seasons[runSeason].bosses){meta.unlocked=Math.max(meta.unlocked,Math.min(3,runSeason+1));save()}upgrade("Boss 擊破獎勵",bossN>=seasons[runSeason].bosses);hudUpdate();return}haptic("small");score+=e.mid?50:20;baseHP+=e.base;if(e.drop)drops.push({x:e.x,y:e.y,vy:PARAMS.drops.moveSpeed});burst(e.x,e.y,e.mid?"#ffca75":"#ff775f",12)}
+function kill(e){if(e.dead)return;e.dead=true;if(e===boss){haptic("boss");boss=null;setMusic("normal");score+=500*seasons[runSeason].mul;dropCount=PARAMS.drops.minPerBossCycle+(Math.random()<PARAMS.drops.extraChance?1:0);burst(e.x,e.y,"#ffd16b",38);if(bossN>=seasons[runSeason].bosses){meta.unlocked=Math.max(meta.unlocked,Math.min(3,runSeason+1));save()}upgrade("Boss 擊破獎勵",bossN>=seasons[runSeason].bosses);hudUpdate();return}haptic("small");score+=e.mid?50:20;if(e.drop)drops.push({x:e.x,y:e.y,vy:PARAMS.drops.moveSpeed});burst(e.x,e.y,e.mid?"#ffca75":"#ff775f",12)}
 function upgradeOpts(){let a=[];for(let d of defs){let lv=p.weapons[d[0]]||0;if(lv&&lv<PARAMS.upgrade.maxLevel)a.push({id:d[0],lv:lv+1,w:[0,1,1.1,1.2,1.3,1.4][lv]});else if(!lv&&used()<cap())a.push({id:d[0],lv:1,w:1})}if(p.bombs<6)a.push({id:"bomb",w:.8});if(p.bombDmg<7)a.push({id:"dmg",w:.8});let out=[];while(out.length<3&&a.length){let s=a.reduce((n,o)=>n+o.w,0),r=Math.random()*s,i=0;while(i<a.length-1&&r>=a[i].w)r-=a[i++].w;out.push(a.splice(i,1)[0])}return out}
 function upgrade(title,final){state="upgrade";let opts=upgradeOpts();if(!opts.length){if(final)clearSeason();else state="play";return}let cards=opts.map(o=>{let d=weapon(o.id),name=d?d[1]+"　Lv."+o.lv:o.id==="bomb"?"炸彈數量 +1":"炸彈攻擊力 +1",desc=d?d[2]:o.id==="bomb"?"增加可攜帶炸彈數量。":"提高炸彈爆炸傷害。";return '<button class="upgrade" data-id="'+o.id+'"><span class="upgrade-icon">'+weaponIcon(o.id)+'</span><span class="upgrade-copy"><b>'+name+'</b><small>'+desc+'</small></span><span class="upgrade-chevron">›</span></button>'}).join("");
 show('<div class="eyebrow">BUILD YOUR AIRCRAFT</div><h2>'+title+'</h2><p class="sub">選擇一項強化，戰鬥暫停中。</p><div class="cards">'+cards+'</div>');
@@ -248,6 +248,7 @@ window.addEventListener("keydown",e=>{if(e.code==="KeyM")toggleMusic();if(e.code
 menu();requestAnimationFrame(frame);
 })();
 </script></body></html>
+
 
 
 
