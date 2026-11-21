@@ -10,11 +10,11 @@
 <script>
 (function(){"use strict";
 // 版號採 MAJOR.MINOR.PATCH：新功能升 MINOR，修正與平衡調整升 PATCH。
-const GAME_VERSION="2.5.1";
+const GAME_VERSION="2.5.2";
 // ===== 遊戲可調參數：秒、毫秒與畫布像素 =====
 const PARAMS={
  screen:{width:393,height:852}, // iPhone 16 直向邏輯畫布比例。
- boss:{intervalSeconds:60,scoreHealthRatio:.05,smallRadius:40,bigRadius:52}, // Boss 血量 = 出現當下分數 × 5%。
+ boss:{intervalSeconds:60,scoreHealthRatio:.05,smallRadius:40,bigRadius:52,homingTurnDegreesPerSecond:85,homingMaxTurnDegrees:40,homingSeconds:1.4}, // Boss 血量 = 出現當下分數 × 5%。
  progression:{permanentPointScoreMultiplier:1.178}, // 永久點數門檻倍率，可在此調整。
  player:{aircraftWidth:60,startBottomOffset:260,initialHP:3,initialBombs:2,initialBombDamage:1,hitInvulnerability:1.5,bombInvulnerability:1}, // 起始位置距畫面底部 260px，避免被底部能力槽遮住。
  mobility:{followDelaySeconds:[.4,.32,.24,.16,.08,0]}, // 機動性 Lv.0～5 的游標追隨時間常數(秒)。
@@ -121,12 +121,12 @@ const BOSS_BUILDS=[
  [["spread"],["tracking"],["machine"],["flame","spread"],["electric","tracking"],["split","spread"],["laser","tracking"],["ice","electric"],["flame","tracking"],["satellite","spread"],["split","electric"],["laser","flame"],["satellite","tracking"]]
 ];
 const BOSS_WEAPON_NAMES={machine:"機槍砲",tracking:"追蹤彈",spread:"散射槍",laser:"雷射槍",satellite:"衛星",electric:"電擊槍",flame:"火焰槍",ice:"冰塊槍",split:"分裂砲"};
-function fireBossWeapon(kind,tier){if(!boss||!p)return;let aim=Math.atan2(p.y-boss.y,p.x-boss.x),originY=boss.y+boss.r*.45,send=(a,speed,r,col,extra={})=>eb.push({x:boss.x,y:originY,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r,col,...extra});
+function fireBossWeapon(kind,tier){if(!boss||!p)return;let originY=boss.y+boss.r*.45,aim=Math.atan2(p.y-originY,p.x-boss.x),send=(a,speed,r,col,extra={})=>eb.push({x:boss.x,y:originY,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r,col,...extra});
  if(kind==="spread"){let n=7+Math.min(6,tier);for(let i=0;i<n;i++)send(aim+(i-(n-1)/2)*.14,165,5,"#ff5579")}
  else if(kind==="machine"){let n=3+Math.min(3,tier);for(let i=0;i<n;i++)send(aim+(i-(n-1)/2)*.055,255,4,"#ff9370")}
- else if(kind==="tracking"){for(let i=0;i<2;i++)send(aim+(i?.1:-.1),150,6,"#ffcb64",{homing:true,speed:150})}
+ else if(kind==="tracking"){for(let i=0;i<2;i++){let a=aim+(i?.1:-.1);send(a,150,6,"#ffcb64",{homing:true,speed:150,launchAngle:a,homingLife:PARAMS.boss.homingSeconds})}}
  else if(kind==="flame"){let n=9+Math.min(4,tier);for(let i=0;i<n;i++)send(aim+(i-(n-1)/2)*.12,130,6,"#ff7448")}
- else if(kind==="electric"){for(let i=0;i<5;i++)send(aim+(i-2)*.045,295,4,"#63ddff")}
+ else if(kind==="electric"){send(aim,280,6,"#63ddff")}
  else if(kind==="ice"){for(let i=0;i<7;i++)send(aim+(i-3)*.12,155,5,"#a0ecff")}
  else if(kind==="split"){for(let i=0;i<2;i++)send(aim+(i?.12:-.12),145,7,"#d5a4ff",{splitTimer:.72,splitCount:3})}
  else if(kind==="laser"){for(let i=0;i<3;i++)send(aim+(i-1)*.025,360,4,"#ff73ed")}
@@ -201,7 +201,7 @@ function update(dt){
  if(boss){let sn=p.weapons.satellite||0;for(let si=0;si<sn;si++){let q=satellitePosition(si,sn);if(Math.hypot(q.x-boss.x,q.y-boss.y)<boss.r+PARAMS.weaponEffects.satellite.hitRadius){boss.satHit=boss.satHit||{};if(!boss.satHit[si]||now-boss.satHit[si]>PARAMS.weaponEffects.satellite.cooldownSeconds){boss.satHit[si]=now;boss.hp-=critDamage(PARAMS.weaponEffects.satellite.damage,boss);if(boss.hp<=0)kill(boss)}}}}
  for(let b of pb){if(b.delay>0){b.delay=Math.max(0,b.delay-dt);continue}b.x+=b.vx*dt;b.y+=b.vy*dt;if(b.id==="tracking"&&b.turning){b.life-=dt;if(b.life>0&&b.target&&!b.target.dead&&b.target.hp>0){let base=b.initialAngle,cur=Math.atan2(b.vx,-b.vy),off=Math.atan2(Math.sin(cur-base),Math.cos(cur-base)),desired=Math.atan2(b.target.x-b.x,b.y-b.target.y),want=Math.atan2(Math.sin(desired-base),Math.cos(desired-base));let maxTurn=PARAMS.weaponEffects.tracking.maxTurnDegrees*Math.PI/180;want=Math.max(-maxTurn,Math.min(maxTurn,want));let diff=Math.atan2(Math.sin((base+want)-cur),Math.cos((base+want)-cur)),step=PARAMS.weaponEffects.tracking.turnDegreesPerSecond*Math.PI/180*dt;cur+=Math.max(-step,Math.min(step,diff));off=Math.atan2(Math.sin(cur-base),Math.cos(cur-base));cur=base+Math.max(-maxTurn,Math.min(maxTurn,off));b.vx=Math.sin(cur)*PARAMS.weaponEffects.tracking.speed;b.vy=-Math.cos(cur)*PARAMS.weaponEffects.tracking.speed}else b.turning=false}else if(b.life!=null){b.life-=dt;if(b.id==="split"&&b.splitsLeft>0&&b.life<=0){split(b);b.dead=true}}if(!b.dead&&hit(b))b.dead=true;if(b.y<-25||b.y>H+25||b.x<-25||b.x>W+25)b.dead=true}
  if(p.laser>0&&p.laserUntil>now){p.laserTickTimer=(p.laserTickTimer||0)-dt;if(p.laserTickTimer<=0){p.laserTickTimer+=PARAMS.weaponEffects.laser.tickSeconds;let hitlist=laserTargets();if(p.laserLevel<6)hitlist=hitlist.slice(0,1);let tickDamage=p.laser*PARAMS.weaponEffects.laser.tickDamagePerSecond*PARAMS.weaponEffects.laser.tickSeconds;for(let e of hitlist){e.hp-=critDamage(tickDamage,e);if(e.hp<=0)kill(e)}}}
- let defenseCount=p.weapons.satellite||0,defense=PARAMS.weaponEffects.satellite;for(let bi=0,limit=eb.length;bi<limit;bi++){let b=eb[bi];if(b.dead)continue;if(b.homing){let angle=Math.atan2(b.vy,b.vx),want=Math.atan2(p.y-b.y,p.x-b.x),diff=Math.atan2(Math.sin(want-angle),Math.cos(want-angle)),step=2.4*dt;angle+=Math.max(-step,Math.min(step,diff));b.vx=Math.cos(angle)*b.speed;b.vy=Math.sin(angle)*b.speed}b.x+=b.vx*dt;b.y+=b.vy*dt;if(b.splitTimer!=null){b.splitTimer-=dt;if(b.splitTimer<=0){b.dead=true;let angle=Math.atan2(b.vy,b.vx);for(let j=0;j<b.splitCount;j++){let a=angle+(j-(b.splitCount-1)/2)*.45,speed=190;eb.push({x:b.x,y:b.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:4,col:b.col})}continue}}let intercepted=false;for(let si=0;si<defenseCount;si++){let q=satellitePosition(si,defenseCount);if(Math.hypot(q.x-b.x,q.y-b.y)<defense.blockRadius+b.r){b.dead=true;intercepted=true;burst(b.x,b.y,"#8ff5ff",5);break}}if(!intercepted&&Math.hypot(p.x-b.x,p.y-b.y)<b.r+10){hurt();b.dead=true}}
+ let defenseCount=p.weapons.satellite||0,defense=PARAMS.weaponEffects.satellite;for(let bi=0,limit=eb.length;bi<limit;bi++){let b=eb[bi];if(b.dead)continue;if(b.homing&&b.homingLife>0){b.homingLife-=dt;let angle=Math.atan2(b.vy,b.vx),want=Math.atan2(p.y-b.y,p.x-b.x),diff=Math.atan2(Math.sin(want-angle),Math.cos(want-angle)),step=PARAMS.boss.homingTurnDegreesPerSecond*Math.PI/180*dt;angle+=Math.max(-step,Math.min(step,diff));let offset=Math.atan2(Math.sin(angle-b.launchAngle),Math.cos(angle-b.launchAngle)),limit=PARAMS.boss.homingMaxTurnDegrees*Math.PI/180;offset=Math.max(-limit,Math.min(limit,offset));angle=b.launchAngle+offset;b.vx=Math.cos(angle)*b.speed;b.vy=Math.sin(angle)*b.speed}b.x+=b.vx*dt;b.y+=b.vy*dt;if(b.splitTimer!=null){b.splitTimer-=dt;if(b.splitTimer<=0){b.dead=true;let angle=Math.atan2(b.vy,b.vx);for(let j=0;j<b.splitCount;j++){let a=angle+(j-(b.splitCount-1)/2)*.45,speed=190;eb.push({x:b.x,y:b.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:4,col:b.col})}continue}}let intercepted=false;for(let si=0;si<defenseCount;si++){let q=satellitePosition(si,defenseCount);if(Math.hypot(q.x-b.x,q.y-b.y)<defense.blockRadius+b.r){b.dead=true;intercepted=true;burst(b.x,b.y,"#8ff5ff",5);break}}if(!intercepted&&Math.hypot(p.x-b.x,p.y-b.y)<b.r+10){hurt();b.dead=true}}
  for(let d of drops){d.y+=d.vy*dt;if(Math.hypot(p.x-d.x,p.y-d.y)<22){d.dead=true;upgrade("武力升級道具",false)}else if(d.y>H+15)d.dead=true}
  en=en.filter(e=>!e.dead);pb=pb.filter(b=>!b.dead);eb=eb.filter(b=>!b.dead&&b.y<H+25&&b.x>-25&&b.x<W+25);drops=drops.filter(d=>!d.dead);
  for(let f of fx){f.life-=dt;f.x+=(f.vx||0)*dt;f.y+=(f.vy||0)*dt}fx=fx.filter(f=>f.life>0);for(let v of bolts)v.life-=dt;bolts=bolts.filter(v=>v.life>0);for(let v of blasts)v.life-=dt;blasts=blasts.filter(v=>v.life>0);for(let v of flames)v.life-=dt;flames=flames.filter(v=>v.life>0);for(let v of radials)v.life-=dt;radials=radials.filter(v=>v.life>0);hudUpdate()
@@ -286,6 +286,7 @@ window.addEventListener("keydown",e=>{if(e.code==="KeyM")toggleMusic();if(e.code
 menu();requestAnimationFrame(frame);
 })();
 </script></body></html>
+
 
 
 
